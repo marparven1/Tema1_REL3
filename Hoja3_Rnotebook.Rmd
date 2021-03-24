@@ -4,13 +4,12 @@ author: "Departamento de Estadística e Investigación Operativa. Universidad de
 subtitle: Estadística Computacional I. Grado en Estadística
 output:
   html_notebook: default
-  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+
 library(tidyverse)
-install.packages("HSAUR2")
 ```
 
 
@@ -22,7 +21,7 @@ install.packages("HSAUR2")
 No vamos a cargar la librería completa para que no haya efectos sobre otros paquetes que vamos a utilizar.
 
 ```{r}
-# library(HSAUR2) 
+library(HSAUR2) 
 USairpollutioN=HSAUR2::USairpollution
 glimpse(USairpollutioN)
 ```
@@ -71,42 +70,193 @@ p1=USairpollutioN %>%
 library(ggExtra)
 ggMarginal(
   p1,
-  type="boxplot",
+  type="boxplot",  #histogram , #density , #densigram
   colour="lightskyblue3",
   fill="lightpink2"
 )
 ```
 
 
-
+# Ejercicio 2
 
 2. Leer el fichero de datos decathlon1989.sav (formato SPSS).
 
 ## Solución ejercicio 2
 
+Desde Enviroment, podemos darle a la opción de Importa Dataset > From SPSS
+Importamos el dataset que queremos y copiamos el código.
+
+```{r}
+library(haven)
+decathlon1989 <- read_sav("decathlon1989.sav")
+glimpse(decathlon1989)
+```
 
 
     i)	Dibujar todos los gráficos de caja y bigotes por separado.
     
+```{r}
+#boxplot(decathlon1989)
+boxplot(decathlon1989[,-(11:12)])
+```
 
 
+Al tratar de dar la instrucción **boxplot(decathlon1989)**, nos aparecerá el siguiente error:
+
+**Error in x[floor(d)] + x[ceiling(d)] : argumento no-numérico para operador binario** , esto se debe a que las últimas dos variables no son numéricas y tienen que serlo, por lo que las quitamos de la respresentación.
+
+
+
+```{r}
+par(mfrow=c(2,5))
+
+for (i in 1:10) {
+  boxplot(
+    decathlon1989[,i],# un boxplot de cada columna
+    main=names(decathlon1989)[i]) # Le digo que use el nombre de la variable
+}
+```
+
+```{r}
+par(mfrow=c(1,1))
+```
+
+
+```{r}
+d2=decathlon1989 %>% 
+  select(-11,-12) %>% 
+  pivot_longer(names_to = "Variables",
+               values_to = "Valores",
+               cols = everything())
+d2 %>% head()
+```
+
+
+
+```{r}
+d2 %>% 
+  ggplot(aes(x=Variables , y=Valores))+
+  geom_boxplot()
+```
+
+Usa la misma escala y no es adecuado, deberíamos sacarlos todos por separado
+  
+  
+```{r}
+d2 %>% 
+  ggplot(aes(x=Valores , color=Variables))+
+  geom_boxplot()+
+  facet_wrap(facets = ~Variables , 
+             scales = "free" ,
+             ncol=5 ,
+             strip.position = "top")+
+  labs(x="", color="")+ #Quitamos las etiquetas
+  theme(legend.position = "none") # Quitamos la leyenda
+```
+
+  
+  
     ii)	Generar las nubes de puntos y añadir histogramas en la diagonal, superponer rectas de minimos cuadrados o suavizaciones o bien mezclar las nubes de puntos con los valores de las correlaciones.
     
-
+Esto lo hace la librer´ya *GGally*
+    
+```{r }
+decathlon1989 %>% 
+  select(-11,-12) %>% 
+  ggpairs(progress = F) # ggpairs:Make a matrix of plots with a given data set
+```
+Tenemos la matriz de correlaciones y los plot con los diagramas de densidad.
 
     iii)	Utilizar la librería corrplot para visualizar la matriz de correlaciones.
     
-
+```{r}
+par(mfrow=c(1,3))
+library(corrplot)
+corrplot(cor(decathlon1989[,-(11:12)]),  type="upper" , diag = FALSE
+        ) # cuidado con las últimas variables
+corrplot(cor(decathlon1989[,-(11:12)]),
+         method = "number") 
+corrplot(cor(decathlon1989[,-(11:12)]),
+         method = "ellipse" ,  type="upper" , diag = FALSE) 
+par(mfrow=c(1,1))
+```
+Cuanto más azul más cerca de 1 y cuanto más rojo más cerca de -1 (correlación negativa) 
+Cuando más claro menos correlación existe entre las variables.
 
     iv)	Obtener las principales medidas descriptivas. Tipificar los datos.
  
+```{r}
+library(skimr)
+skim(decathlon1989) # Le doy el dataset que quiero resumir
+```
+
+
+
+```{r}
+library(psych)
+describe(decathlon1989) # Solo saca para las variables numéricas
+```
+
+
+Para tipificar (resto media y divido por la destip), hago uso de la función **scale**
+
+```{r}
+z=scale(decathlon1989[,-(11:12)])
+head(z)
+```
+
+```{r}
+var(z) %>%  round(3) # Matriz de covarianzas
+```
+
+La matriz de covarianzas de los datos tipificados coincide con la matriz de correlaciones.
+
+```{r}
+cor(z) %>%  round(3)
+```
+
 
 # Ejercicio 3
 
 ## Solución ejercicio 3
 
+
+
+
 3. Cargar el espacio de trabajo "Pisa2009.RData". Dibujar representaciones multivariantes como las caras de Chernoff o los gráficos "star".
 
+```{r}
+load("Pisa2009.Rdata", verbose = TRUE)
+glimpse(pisa)
+describe(pisa)
+```
+
+
+```{r}
+pisa %>% 
+  ggplot(aes(x=Matem , y=Lectura , label=PAIS))+
+  geom_point(size=2 , color ="darkseagreen3") + 
+  geom_text_repel(max.overlaps = 40)
+```
+
+
+
+
+
+Esquina inferior izquierda son los de peor nota en matemáticas y peor nota en lectura.
+
+
+```{r}
+library(TeachingDemos)
+faces(pisa[1:36,-1],labels=pisa[1:36,1], main="Informe PISA 2009")
+```
+
+```{r}
+rownames(pisa)=pisa[,1]
+stars(pisa[,c(2,8,9)] , key.loc=c(14,2),main="Informe PISA 2009")
+```
+
+Estrella en la que cada radio es una variable de las que quiero representar.
 
 # Ejercicio 4
 
