@@ -4,9 +4,11 @@ author: "Departamento de Estadística e Investigación Operativa. Universidad de
 subtitle: Estadística Computacional I. Grado en Estadística
 output:
   html_notebook: default
+  word_document: default
+  pdf_document: default
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE , fig.align='center', out.width="90%"}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 library(tidyverse)
@@ -117,6 +119,8 @@ for (i in 1:10) {
 }
 ```
 
+
+
 ```{r}
 par(mfrow=c(1,1))
 ```
@@ -158,7 +162,7 @@ d2 %>%
   
     ii)	Generar las nubes de puntos y añadir histogramas en la diagonal, superponer rectas de minimos cuadrados o suavizaciones o bien mezclar las nubes de puntos con los valores de las correlaciones.
     
-Esto lo hace la librer´ya *GGally*
+Esto lo hace la librería *GGally*
     
 ```{r }
 decathlon1989 %>% 
@@ -263,16 +267,178 @@ Estrella en la que cada radio es una variable de las que quiero representar.
 ## Solución ejercicio 4
 
 4. Leer el fichero "familias.txt", que contiene información sobre 50 familias: identificación, ingresos, número de adultos y de 14 a 16 años, número de menores de 14 años, zona de residencia y máximo nivel de estudios alcanzado. La primera fila es una cabecera con los nombres de las variables.
-    i)	Calcular y almacenar en una variable del data frame las unidades de consumo de cada familia: 1 para el primer mayor de edad ó entre 14 y 16, 0’5 por cada uno de los restantes de este grupo y 0’3 por cada menor 14. (Definición oficial).
-    ii)	Calcular para cada familia los ingresos por cada unidad de consumo.
+
+
+```{r}
+dat4=read.table(file="familias.txt",header = TRUE)
+head(dat4)
+```
+
+
+### Apartado 4.i
+
+
+Calcular y almacenar en una variable del data frame las unidades de consumo de cada familia: 1 para el primer mayor de edad ó entre 14 y 16, 0’5 por cada uno de los restantes de este grupo y 0’3 por cada menor 14. (Definición oficial).
+    
+    
+Vamos a actualizar el dataset
+
+```{r}
+
+dat4=dat4 %>% 
+  mutate(
+    UnidadConsumo = ifelse(nadult_y_14_16>=1 ,
+                           1+ (nadult_y_14_16-1)*0.5,0) + 
+                    ifelse(n_menor14>=1 , n_menor14*0.3,0)
+  )
+head(dat4)
+```
+    
+### Apartado 4.ii
+
+Calcular para cada familia los ingresos por cada unidad de consumo.
     Se fija el umbral de pobreza (relativa) como el 60% de la mediana de los ingresos por unidad de consumo. Una persona cuya familia tenga unos ingresos por unidad de consumo inferiores a dicho umbral estará en estado de pobreza relativa.
-    iii)	Detectar las familias en estado de pobreza relativa. 
-    iv)	Hallar el porcentaje de familias en estado de pobreza. 
-    v)	Hacer un diagrama de barra de dichos porcentajes.
-    vi)	Hallar los ingresos medios por unidad de consumo para cada grupo de pobreza.
-    vii)	Hallar la desviación típica para cada grupo de pobreza.
-    viii)	Hallar la mediana de ingresos para cada grupo definido por el nivel educativo máximo en la familia. 
-    ix)	 Calcular la brecha de pobreza definida como la diferencia entre la media de ingresos por unidad de consumo de las familias que representan el 20% de las familias con ingresos más altos, y la media de dichos ingresos para las familias que representan el 20% de las familias con ingresos más bajos. 
+    
+```{r}
+dat4  =  dat4 %>% 
+  mutate(
+    IngresosUC=ingresos/UnidadConsumo
+  )
+
+head(dat4 %>% select(ingresos, UnidadConsumo, IngresosUC))
+```
+
+
+
+
+    
+### Apartado 4.iii	
+Detectar las familias en estado de pobreza relativa. 
+
+
+```{r}
+(NivelPobreza=median(dat4$IngresosUC)*0.60)
+
+dat4 = dat4 %>% 
+  mutate(
+    PobrezaRelativa = ifelse(
+      median(IngresosUC)*0.60 > IngresosUC , "Si" , "No"
+    )
+  )
+
+dat4 %>% 
+  select(PobrezaRelativa, IngresosUC) %>% 
+  head(15)
+```
+
+
+### Apartado 4.iv
+Hallar el porcentaje de familias en estado de pobreza. 
+
+
+
+Podríamos hacer una tabla de frecuencias de la variable, por ejemplo.
+
+
+```{r}
+dat4pobrel=dat4 %>% group_by(PobrezaRelativa) %>% 
+  summarise(
+    PorPobRel= (n()/nrow(dat4))*100
+              ) #%>% 
+  #filter(PobrezaRelativa=="Si")
+```
+
+El 16% de familias se encuentran en estado de pobreza.
+
+### Apartado 4.v
+Hacer un diagrama de barra de dichos porcentajes.
+
+
+```{r}
+dat4pobrel %>% 
+  ggplot(aes(x=PobrezaRelativa,y=PorPobRel,fill=PobrezaRelativa))+
+  geom_col()+
+  scale_y_continuous(breaks = seq(0,90,10),
+                     labels = paste0(seq(0,90,10),"%"))+
+  geom_text(aes(label=paste0(PorPobRel,"%")),
+        vjust=-0.35          )+
+  labs(
+    title = "Familias en pobreza relativa",
+    y="Porcentaje de pobreza relativa",
+    x="Pobreza relativa",
+    caption="Elaboración Propia",
+    fill=""
+  )
+```
+
+
+
+
+
+### Apartado 4.vi
+Hallar los ingresos medios por unidad de consumo para cada grupo de pobreza.
+
+```{r}
+dat4 %>% 
+  group_by(PobrezaRelativa) %>% 
+  summarise(
+    IngporUC_media=mean(IngresosUC)
+  )
+```
+
+
+### Apartado 4.vii
+Hallar la desviación típica para cada grupo de pobreza.
+
+```{r}
+dat4 %>% 
+  group_by(PobrezaRelativa) %>% 
+  summarise(
+    IngporUC_cdesvtip=sd(IngresosUC),
+    IngporUC_desvtip=sqrt(var(IngresosUC)*(n()-1)/(n()))
+  )
+```
+
+
+### Apartado 4.viii
+Hallar la mediana de ingresos para cada grupo definido por el nivel educativo máximo en la familia. 
+
+```{r}
+dat4 %>% 
+  group_by(nivel_est_max) %>% 
+  summarise(
+    IngrsosMedianos=median(ingresos)
+  )
+```
+
+
+### Apartado 4.ix
+Calcular la brecha de pobreza definida como la diferencia entre la media de ingresos por unidad de consumo de las familias que representan el 20% de las familias con ingresos más altos, y la media de dichos ingresos para las familias que representan el 20% de las familias con ingresos más bajos. 
+
+
+```{r}
+# dat4 %>% 
+#   filter(IngresosUC >= quantile(IngresosUC,0.80, type = 2)) # De estas familias quiero la media de los ingresos por UD de consumo
+#   
+Altos=dat4 %>% 
+   filter(IngresosUC >= quantile(IngresosUC,0.80, type = 2)) %>% 
+   summarise(
+     Media_Mas_Altos = mean(IngresosUC)
+   ) %>% 
+  pull()
+
+Bajos=dat4 %>% 
+   filter(IngresosUC <= quantile(IngresosUC,0.20, type = 2)) %>% 
+   summarise(
+     Media_Mas_Bajos = mean(IngresosUC)
+   )%>% 
+  pull()
+
+Altos;Bajos
+(Brecha_pobrez=Altos-Bajos)
+
+#library(data.table)
+```
 
 
 # Ejercicio 5
@@ -280,14 +446,158 @@ Estrella en la que cada radio es una variable de las que quiero representar.
 ## Solución ejercicio 5
 
 5. El fichero "Preferencias_Marcas.txt" contiene en cada fila la edad, sexo y marca preferida de cierto producto para un conjunto de personas.
-    i)	Leer los datos y obtener un resumen inicial. El código "99" indica valor perdido.
-    ii)	Encontrar los casos incompletos. Seleccionar los casos completos para el resto del ejercicio.
-    iii)	Obtener y representar la función de distribución de la variable edad.
-    iv)	Construir una variable categórica para la edad, utilizando los siguientes puntos de corte: (18, 23, 29, 50, 58, 67).
-    v)	Obtener las tablas de frecuencias de cada variable categórica.
-    vi)	Cruzar las variables edad (intervalos) y marca. 
-    vii)	Cruzar las tres variables categóricas.
-    viii)	Resumir la edad según la marca.
+
+
+### Apartado 5.i
+Leer los datos y obtener un resumen inicial. El código "99" indica valor perdido.
+
+```{r}
+dat5=read.table(file="Preferencias_Marcas.txt",header = TRUE, na.rm=TRUE)
+head(dat5)
+```
+
+
+```{r}
+summary(dat5)
+#dat5[dat5==99]=NA
+```
+
+### Apartado 5.ii
+Encontrar los casos incompletos. Seleccionar los casos completos para el resto del ejercicio.
+```{r}
+dat5[!complete.cases(dat5),] # son los incompletos
+
+dat5=dat5[complete.cases(dat5),]
+glimpse(dat5)
+```
+
+
+### Apartado 5.iii
+Obtener y representar la función de distribución de la variable edad.
+
+```{r}
+dat5 %>% 
+  group_by(Edad) %>% 
+  summarise(
+    ni=n()
+  ) %>% 
+  mutate(
+    fi=ni/nrow(dat5),
+    pi=fi*100,
+    Ni=cumsum(ni),
+    Fi=cumsum(fi),
+    Pi=cumsum(pi)
+  )->Tf_edad
+Tf_edad
+```
+
+```{r}
+Tf_edad %>% 
+  ggplot(aes(x=Edad,y=Fi))+
+  geom_step()
+```
+
+
+
+### Apartado 5.iv
+Construir una variable categórica para la edad, utilizando los siguientes puntos de corte: (18, 23, 29, 50, 58, 67).
+
+
+```{r}
+dat5=dat5 %>% 
+  mutate(
+    EdadInt= cut(Edad, breaks=c(18, 23, 29, 50, 58, 67))
+  )
+```
+
+
+
+### Apartado 5.v   
+Obtener las tablas de frecuencias de cada variable categórica.
+    
+    
+La variable sexo:
+
+```{r}
+dat5 %>% 
+  group_by(Sexo) %>% 
+  summarise(
+    ni=n()
+  ) %>% 
+  mutate(
+    fi=ni/nrow(dat5),
+    pi=fi*100
+  )
+```
+  
+Para marca: 
+   
+```{r}
+dat5 %>% 
+  group_by(Marca) %>% 
+  summarise(
+    ni=n()
+  ) %>% 
+  mutate(
+    fi=ni/nrow(dat5),
+    pi=fi*100
+  )
+```
+   
+    
+    
+### Apartado 5.vi  
+Cruzar las variables edad (intervalos) y marca. 
+
+```{r}
+table(dat5$EdadInt,dat5$Marca)
+```
+
+```{r}
+library(janitor)
+dat5 %>% 
+  tabyl(EdadInt,Marca)
+```
+
+
+
+```{r}
+dat5 %>% 
+  tabyl(EdadInt, Marca , show_missing_levels=FALSE) %>% 
+  adorn_percentages("all") %>%  # Calcula las frecuencias relativas
+  adorn_pct_formatting(digits=2) %>% 
+  adorn_ns() # Frecuencias absolutas conjuntas
+```
+
+    
+### Apartado 5.vii    
+Cruzar las tres variables categóricas.
+
+```{r}
+dat5 %>% 
+  tabyl(EdadInt, Marca , Sexo, show_missing_levels=FALSE) %>% 
+  adorn_totals("row") %>% 
+  adorn_percentages("all") %>%  
+  adorn_pct_formatting(digits=2) %>% 
+  adorn_ns() %>% 
+  adorn_title()
+```
+
+
+   
+### Apartado 5.viii    
+Resumir la edad según la marca.
+
+```{r}
+dat5 %>% 
+  group_by(Marca) %>% 
+  summarise(
+    Medias=mean(Edad)
+  )
+```
+
+Comentar
+
 
 # Ejercicio 6
 ## Solución ejercicio 6
@@ -301,17 +611,122 @@ Estrella en la que cada radio es una variable de las que quiero representar.
     - Año nacimiento cónyuge B (71-74); Sexo cónyuge B (89) (1: Hombre, 6: Mujer)
 
 
-    i)	Leer los datos de acuerdo con este diseño de registro. Seleccionar los casos completos, eliminando los registros que presenten valores perdidos.
-    ii)	Convertir en variables tipo factor las variables categóricas, definiendo apropiadamente los nombres de los códigos. Para el código provincial, leer los nombres de las provincias en el fichero SPSS "CódigosProvComINE.sav".
-    iii)	Construir nuevas variables que contengan las edades de los cónyuges y la diferencia de edad entre los cónyuges A y B.
-    iv)	Almacenar en un data frame permanente el fichero con todas las variables construidas. Borrar el espacio de trabajo y cargar el data frame.
-    v)	Obtener los totales de matrimonios y los porcentajes correspondientes para el cruce de las variables Sexo Cónyuges.
-    vi)	Tabular el código provincial.
-    vii)	Obtener una tabla donde para cada provincia aparezca el total de matrimonios, el para cada par (Sexo A, SexoB) y según tipo de celebración.
-    viii)	Construir una tabla similar a la anterior pero con los porcentajes dentro de cada provincia. Ordenar las provincias según el porcentaje de matrimonios católicos. Representar gráficamente las provincias según los porcentajes de matrimonios católicos y civiles.
-    ix)	 Analizar por separado las edades de los cónyuges, tanto en su escala original como categorizando con los puntos de corte (15,30,45,65,100).
-    x)	Resumir la diferencia de edad, tanto globalmente como según otras características.
+### Apartado 6.i
+Leer los datos de acuerdo con este diseño de registro. Seleccionar los casos completos, eliminando los registros que presenten valores perdidos.
 
+
+```{r}
+dat6= readr::read_fwf(file = "matrimoniosA2009.txt",
+                      fwf_cols(
+                               "Mes"=c(6,7),
+                               "TipoCel"=c(12,12),
+                               "CodProv"=c(13,14),
+                               "ConyA"=c(23,26),
+                               "SexoA"=c(41,41),
+                               "ConyB"=c(71-74),
+                               "SexoB"=c(89,89)
+                               ))
+
+```
+
+
+```{r}
+dat6= dat6 %>% 
+  mutate(
+    TipoCel= recode (TipoCel,
+                     `1` = "Católico",
+                     `2`="Otra religión",
+                     `3`="Exclusivamente civil"),
+    
+      SexoA= recode (SexoA,
+                     `1` = "Hombre",
+                     `6`="Mujer"),
+    
+     SexoB= recode (SexoB,
+                     `1` = "Hombre",
+                     `6`="Mujer")
+  )
+```
+
+
+
+```{r}
+dat6= dat6 %>% 
+  filter(complete.cases(.))
+```
+
+
+### Apartado 6.ii
+Convertir en variables tipo factor las variables categóricas, definiendo apropiadamente los nombres de los códigos. Para el código provincial, leer los nombres de las provincias en el fichero SPSS "CódigosProvComINE.sav".
+
+
+```{r}
+library(haven) # Para leer archivos SPSS
+dat6cod=read_sav("CodigosProvComINE.sav")
+head(dat6cod)
+```
+
+
+
+```{r}
+dat6m=dat6 %>% 
+  left_join(data6cod, by=c("CodProv"="codprovcadena")) # Nombres de las columnas de las tablas
+head(dat6m)
+```
+
+
+### Apartado 6.iii
+Construir nuevas variables que contengan las edades de los cónyuges y la diferencia de edad entre los cónyuges A y B.
+
+
+```{r}
+
+```
+
+### Apartado 6.iv
+Almacenar en un data frame permanente el fichero con todas las variables construidas. Borrar el espacio de trabajo y cargar el data frame.
+
+
+```{r}
+
+```
+
+### Apartado 6.v
+Obtener los totales de matrimonios y los porcentajes correspondientes para el cruce de las variables Sexo Cónyuges.
+```{r}
+
+```
+
+### Apartado 6.vi
+Tabular el código provincial.
+```{r}
+
+```
+    
+### Apartado 6.vii
+Obtener una tabla donde para cada provincia aparezca el total de matrimonios, el para cada par (Sexo A, SexoB) y según tipo de celebración.
+```{r}
+
+```
+
+### Apartado 6.viii
+Construir una tabla similar a la anterior pero con los porcentajes dentro de cada provincia. Ordenar las provincias según el porcentaje de matrimonios católicos. Representar gráficamente las provincias según los porcentajes de matrimonios católicos y civiles.
+```{r}
+
+```
+
+### Apartado 6.ix
+Analizar por separado las edades de los cónyuges, tanto en su escala original como categorizando con los puntos de corte (15,30,45,65,100).
+```{r}
+
+```
+
+### Apartado 6.x
+Resumir la diferencia de edad, tanto globalmente como según otras características.
+
+```{r}
+
+```
 
 
 
